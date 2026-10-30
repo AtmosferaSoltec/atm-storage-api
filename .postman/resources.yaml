@@ -1,0 +1,5 @@
+localResources:
+  specs:
+    - ../postman/specs/storage.openapi.json
+workspace:
+  id: ''

@@ -1,0 +1,30 @@
+purpose:
+  stands_in_for: Cloudflare R2 S3-compatible object operations, with local state and fault controls.
+  unblocks: Real storage HTTP/JWT/PostgreSQL/AWS SDK pipeline verification without bucket credentials.
+assumptions:
+  - id: s3-operation-compatibility
+    status: supported
+    claim: R2 documents PutObject, GetObject and DeleteObject through its S3-compatible endpoint.
+    reason: The official R2 compatibility table and Go SDK example describe these operations; the mock models only this subset.
+    verification: Documentation reviewed 2026-10-29. No request was sent to a live R2 account.
+    source: https://developers.cloudflare.com/r2/api/s3/api/
+    updated_at: '2026-10-29'
+  - id: caller-failure-handling
+    status: supported
+    claim: In the simulated PUT/DELETE 503 scenarios, the caller retains pending/deleting metadata and permits deletion retry without exposing incomplete files.
+    reason: The real Gin handlers, JWT middleware, PostgreSQL repository and AWS SDK ran against the stateful local mock; logs show the dependency calls and retries.
+    verification: On 2026-10-29 TestStoragePipeline passed under go test -race. PUT/GET preserved 22 bytes, DELETE 503 hid the file, retry returned 204, subsequent object GET returned 404, and PUT 503 left pending metadata. SDK retries made three attempts during each simulated outage.
+    source: internal/features/file/pipeline_test.go; postman/mocks/r2/default.js
+    updated_at: '2026-10-29'
+  - id: live-provider-configuration
+    status: unknown
+    claim: The production credentials, bucket permissions and signed downloads work with the real R2 account.
+    reason: No real credentials or bucket were used; the mock does not validate SigV4.
+    verification: Not verified. Run isolated development-bucket upload/download/delete before production enablement.
+    source: internal/provider/s3/store.go; .env.example
+    updated_at: '2026-10-29'
+fingerprints:
+  - id: initial-scaffold
+    date: '2026-10-29'
+    commit: '6de5b332bfe32ed4ff33b07e6acf576b3151f1a4 plus uncommitted initial implementation'
+    cli: '1.77.0'

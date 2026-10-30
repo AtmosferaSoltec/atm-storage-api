@@ -1,0 +1,15 @@
+# Simulation scaffold. Add fault-injection scenarios under each mock, e.g.:
+#   scenarios:
+#     - overrides:
+#         conditions:
+#           latency: { delay_ms: 500 }
+# Then serve it with: postman simulation run <this file>
+
+simulation: storage-dev
+routing: path
+mocks:
+  - name: r2
+    routeKey: r2
+    origin:
+      - storage-r2.test
+    path: postman/mocks/r2

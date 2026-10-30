@@ -1,0 +1,10 @@
+version: 1
+name: r2
+slug: r2
+protocol: http
+origin: storage-r2.test
+interceptRequests: true
+scenarios:
+  - name: default
+    path: ./default.js
+    default: true
