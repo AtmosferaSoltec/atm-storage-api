@@ -3,7 +3,7 @@ package config
 import "testing"
 
 func TestEnvironmentIsolation(t *testing.T) {
-	base := Config{Environment: "development", HTTPPort: "8084", DatabaseURL: "postgres://test", Provider: "r2", Bucket: "atm-dev", Endpoint: "https://example.r2.cloudflarestorage.com", Region: "auto", AccessKeyID: "test", SecretAccessKey: "test", AuthPublicKeyBase64: "test", AuthIssuer: "dev", MaxUploadBytes: 1024, MaxLogoBytes: 512, DownloadTTL: 300000000000}
+	base := Config{Environment: "development", HTTPPort: "8084", DatabaseURL: "postgres://test", Provider: "r2", Bucket: "atm-dev", Endpoint: "https://example.r2.cloudflarestorage.com", Region: "auto", AccessKeyID: "test", SecretAccessKey: "test", AuthPublicKeyBase64: "test", AuthIssuer: "dev", MaxUploadBytes: 1024, MaxLogoBytes: 512, DownloadTTL: 300000000000, PreviewTTL: 3600000000000}
 	if err := base.Validate(); err != nil {
 		t.Fatal(err)
 	}
@@ -13,6 +13,8 @@ func TestEnvironmentIsolation(t *testing.T) {
 	}{
 		{"development using production bucket", func(c *Config) { c.Bucket = "atm-prod" }},
 		{"production using development bucket", func(c *Config) { c.Environment = "production" }},
+		{"preview links that never live", func(c *Config) { c.PreviewTTL = 0 }},
+		{"preview links that live too long", func(c *Config) { c.PreviewTTL = 25 * 3600000000000 }},
 		{"unsupported provider", func(c *Config) { c.Provider = "firebase" }},
 		{"unknown environment", func(c *Config) { c.Environment = "staging" }},
 		{"oversized limit", func(c *Config) { c.MaxUploadBytes = 1 << 40 }},

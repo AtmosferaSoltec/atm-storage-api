@@ -57,10 +57,11 @@ All `/v1` routes require `Authorization: Bearer <atm-auth access token>`. The se
 | GET | `/v1/files/summary` | Superadmin reads stored files and bytes per scope and system |
 | GET | `/v1/files/{id}` | File metadata |
 | GET | `/v1/files/{id}/download` | Signed download URL and expiry |
+| POST | `/v1/files/preview` | Signed inline links for up to 100 images at once: `{ids:[…]}` → `{items:{<id>:{url,expires_at}}}`. Ids the caller cannot read or that are not images are left out. Links live `PREVIEW_URL_TTL` (1 h by default) |
 | GET | `/v1/files/{id}/preview` | Signed URL that shows PNG/JPEG/GIF/WebP inline in the browser (415 `not_previewable` for other types) |
 | DELETE | `/v1/files/{id}` | Delete object and metadata |
 
-Upload body: `multipart/form-data` with exactly one `file` part. Default maximum: 25 MiB; logos: 2 MiB, valid PNG/JPEG, at most 16 megapixels. Generic files may contain arbitrary bytes and are downloaded as attachments; uploads are not malware-scanned. System uploads by ordinary users must match the token's `tenant` and `system`; their files are private to the uploader. Any member of a company can read its shared company assets; only superadmin can mutate them. A system's backend can read company logos (not system files) with its service token from `POST /v1/token` in atm-auth-api, to print them on its documents; it cannot upload, delete or list. This service does not infer business permissions from `app_role`.
+Upload body: `multipart/form-data` with exactly one `file` part. Default maximum: 25 MiB; logos: 2 MiB, valid PNG/JPEG, at most 16 megapixels. Generic files may contain arbitrary bytes and are downloaded as attachments; uploads are not malware-scanned. System uploads by ordinary users must match the token's `tenant` and `system`; their files are private to the uploader. Any member of a company can read its shared company assets; only superadmin can mutate them. A system's backend uses its service token from `POST /v1/token` in atm-auth-api to read company logos, and to **upload, read and delete the files of its own system** in the company it names (`scope=system&system=<its code>`); the business rules about who may do that live in that backend. It cannot touch another system's files, replace company assets, list or read usage. This service does not infer business permissions from `app_role`.
 
 ```sh
 curl "$STORAGE_API_URL/v1/companies/$COMPANY_ID/files?scope=company&purpose=logo" \

@@ -13,12 +13,12 @@ import (
 type Config struct {
 	Environment, HTTPPort, DatabaseURL, Provider, Bucket, Endpoint, Region, AccessKeyID, SecretAccessKey, AuthPublicKeyBase64, AuthIssuer string
 	MaxUploadBytes, MaxLogoBytes                                                                                                          int64
-	DownloadTTL                                                                                                                           time.Duration
+	DownloadTTL, PreviewTTL                                                                                                               time.Duration
 	CORSOrigins                                                                                                                           []string
 }
 
 func Load() (Config, error) {
-	c := Config{Environment: value("APP_ENV", "development"), HTTPPort: value("HTTP_PORT", "8084"), DatabaseURL: os.Getenv("DATABASE_URL"), Provider: value("STORAGE_PROVIDER", "r2"), Bucket: os.Getenv("STORAGE_BUCKET"), Endpoint: os.Getenv("STORAGE_ENDPOINT"), Region: value("STORAGE_REGION", "auto"), AccessKeyID: os.Getenv("STORAGE_ACCESS_KEY_ID"), SecretAccessKey: os.Getenv("STORAGE_SECRET_ACCESS_KEY"), AuthPublicKeyBase64: os.Getenv("AUTH_PUBLIC_KEY_BASE64"), AuthIssuer: os.Getenv("AUTH_ISSUER"), MaxUploadBytes: 25 << 20, MaxLogoBytes: 2 << 20, DownloadTTL: 5 * time.Minute}
+	c := Config{Environment: value("APP_ENV", "development"), HTTPPort: value("HTTP_PORT", "8084"), DatabaseURL: os.Getenv("DATABASE_URL"), Provider: value("STORAGE_PROVIDER", "r2"), Bucket: os.Getenv("STORAGE_BUCKET"), Endpoint: os.Getenv("STORAGE_ENDPOINT"), Region: value("STORAGE_REGION", "auto"), AccessKeyID: os.Getenv("STORAGE_ACCESS_KEY_ID"), SecretAccessKey: os.Getenv("STORAGE_SECRET_ACCESS_KEY"), AuthPublicKeyBase64: os.Getenv("AUTH_PUBLIC_KEY_BASE64"), AuthIssuer: os.Getenv("AUTH_ISSUER"), MaxUploadBytes: 25 << 20, MaxLogoBytes: 2 << 20, DownloadTTL: 5 * time.Minute, PreviewTTL: time.Hour}
 	for name, dest := range map[string]*int64{"MAX_UPLOAD_BYTES": &c.MaxUploadBytes, "MAX_LOGO_BYTES": &c.MaxLogoBytes} {
 		if raw := os.Getenv(name); raw != "" {
 			v, err := strconv.ParseInt(raw, 10, 64)
@@ -34,6 +34,13 @@ func Load() (Config, error) {
 			return Config{}, errors.New("invalid DOWNLOAD_URL_TTL")
 		}
 		c.DownloadTTL = v
+	}
+	if raw := os.Getenv("PREVIEW_URL_TTL"); raw != "" {
+		v, err := time.ParseDuration(raw)
+		if err != nil {
+			return Config{}, errors.New("invalid PREVIEW_URL_TTL")
+		}
+		c.PreviewTTL = v
 	}
 	for _, origin := range strings.Split(os.Getenv("WEB_CORS_ORIGINS"), ",") {
 		if origin = strings.TrimSpace(origin); origin != "" {
@@ -80,6 +87,9 @@ func (c Config) Validate() error {
 	}
 	if c.DownloadTTL < time.Second || c.DownloadTTL > time.Hour {
 		return errors.New("DOWNLOAD_URL_TTL must be between 1s and 1h")
+	}
+	if c.PreviewTTL < time.Second || c.PreviewTTL > 24*time.Hour {
+		return errors.New("PREVIEW_URL_TTL must be between 1s and 24h")
 	}
 	for _, origin := range c.CORSOrigins {
 		u, err := url.Parse(origin)

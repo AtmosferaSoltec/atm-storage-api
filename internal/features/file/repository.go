@@ -9,6 +9,8 @@ import (
 type Repository interface {
 	Create(context.Context, File) error
 	Get(context.Context, string) (File, error)
+	// GetMany returns the files found for the ids, in any order. Missing ids are simply absent.
+	GetMany(context.Context, []string) ([]File, error)
 	MarkReady(context.Context, string) error
 	MarkDeleting(context.Context, string) error
 	Delete(context.Context, string) error

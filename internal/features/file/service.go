@@ -47,6 +47,14 @@ func (s *Service) ValidateUpload(p Principal, u Upload) error {
 	if p.Role == "superadmin" {
 		return nil
 	}
+	// A system's backend stores files of its own system, in the company it names: the business rules about who
+	// may do it live in that backend. It never writes company assets (logos) or files of another system.
+	if p.Role == "service" {
+		if p.Subject == "" || u.Scope != "system" || u.Purpose != "file" || u.System != p.System {
+			return ErrForbidden
+		}
+		return nil
+	}
 	if p.Role != "user" || p.Subject == "" || p.CompanyID != u.CompanyID || p.System != u.System || u.Scope != "system" {
 		return ErrForbidden
 	}
@@ -106,10 +114,14 @@ func canAccess(p Principal, f File, write bool) bool {
 	if p.Role == "superadmin" {
 		return true
 	}
-	// A system's backend (service token) may only read company logos, to print them on its documents. The token
-	// names the system, not a company, so it never reaches system files, uploads, deletions or listings.
+	// A system's backend (service token) reads company logos to print them on its documents, and reads, stores and
+	// deletes the files of its own system. The token names the system, not a company, so it never reaches another
+	// system's files, company assets it did not read, listings or usage.
 	if p.Role == "service" {
-		return !write && f.Scope == "company" && f.Purpose == "logo"
+		if f.Scope == "company" {
+			return !write && f.Purpose == "logo"
+		}
+		return f.System == p.System
 	}
 	if p.Role != "user" || p.CompanyID != f.CompanyID {
 		return false
@@ -154,8 +166,12 @@ func (s *Service) signedURL(ctx context.Context, p Principal, id string, inline 
 	if f.Provider != s.settings.Provider || f.Bucket != s.settings.Bucket {
 		return Download{}, ErrProvider
 	}
-	expires := time.Now().UTC().Add(s.settings.DownloadTTL)
-	url, err := s.store.DownloadURL(ctx, f.Key, f.Filename, s.settings.DownloadTTL, inline)
+	ttl := s.settings.DownloadTTL
+	if inline {
+		ttl = s.settings.PreviewTTL
+	}
+	expires := time.Now().UTC().Add(ttl)
+	url, err := s.store.DownloadURL(ctx, f.Key, f.Filename, ttl, inline)
 	if err != nil {
 		return Download{}, ErrProvider
 	}
@@ -231,4 +247,45 @@ func (s *Service) Summary(ctx context.Context, p Principal) (Summary, error) {
 		summary.TotalBytes += u.TotalBytes
 	}
 	return summary, nil
+}
+
+// maxPreviewBatch bounds how many links one request signs.
+const maxPreviewBatch = 100
+
+// PreviewMany signs inline links for many images at once, for a page that shows a grid of them. Ids the
+// principal cannot read, that are not ready or are not previewable images are left out of the answer instead
+// of failing the whole batch.
+func (s *Service) PreviewMany(ctx context.Context, p Principal, ids []string) (map[string]Download, error) {
+	if len(ids) == 0 || len(ids) > maxPreviewBatch {
+		return nil, ErrInvalid
+	}
+	unique := make([]string, 0, len(ids))
+	seen := map[string]bool{}
+	for _, id := range ids {
+		parsed, err := uuid.Parse(id)
+		if err != nil || parsed.String() != id {
+			return nil, ErrInvalid
+		}
+		if !seen[id] {
+			seen[id] = true
+			unique = append(unique, id)
+		}
+	}
+	files, err := s.repo.GetMany(ctx, unique)
+	if err != nil {
+		return nil, fmt.Errorf("get files: %w", err)
+	}
+	out := make(map[string]Download, len(files))
+	expires := time.Now().UTC().Add(s.settings.PreviewTTL)
+	for _, f := range files {
+		if f.State != "ready" || !canAccess(p, f, false) || !previewable[f.ContentType] || f.Provider != s.settings.Provider || f.Bucket != s.settings.Bucket {
+			continue
+		}
+		url, err := s.store.DownloadURL(ctx, f.Key, f.Filename, s.settings.PreviewTTL, true)
+		if err != nil {
+			return nil, ErrProvider
+		}
+		out[f.ID] = Download{URL: url, ExpiresAt: expires}
+	}
+	return out, nil
 }

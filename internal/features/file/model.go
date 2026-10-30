@@ -30,7 +30,9 @@ type Download struct {
 type Settings struct {
 	Environment, Provider, Bucket string
 	MaxUploadBytes, MaxLogoBytes  int64
-	DownloadTTL                   time.Duration
+	// DownloadTTL is how long a download link lives. PreviewTTL is how long an inline image link lives: it is
+	// longer because pages keep showing the image after it loaded (a catalog grid left open).
+	DownloadTTL, PreviewTTL time.Duration
 }
 
 type ListFilter struct {

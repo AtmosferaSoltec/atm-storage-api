@@ -68,7 +68,7 @@ func run(ctx context.Context, logger *slog.Logger, args []string) error {
 		return errors.New("database unavailable")
 	}
 	store := storage.New(storage.Config{Endpoint: cfg.Endpoint, Region: cfg.Region, AccessKeyID: cfg.AccessKeyID, SecretAccessKey: cfg.SecretAccessKey, Bucket: cfg.Bucket})
-	service := file.NewService(file.NewRepository(pool), store, file.Settings{Environment: cfg.Environment, Provider: cfg.Provider, Bucket: cfg.Bucket, MaxUploadBytes: cfg.MaxUploadBytes, MaxLogoBytes: cfg.MaxLogoBytes, DownloadTTL: cfg.DownloadTTL})
+	service := file.NewService(file.NewRepository(pool), store, file.Settings{Environment: cfg.Environment, Provider: cfg.Provider, Bucket: cfg.Bucket, MaxUploadBytes: cfg.MaxUploadBytes, MaxLogoBytes: cfg.MaxLogoBytes, DownloadTTL: cfg.DownloadTTL, PreviewTTL: cfg.PreviewTTL})
 	gin.SetMode(gin.ReleaseMode)
 	engine := gin.New()
 	if err := engine.SetTrustedProxies(nil); err != nil {

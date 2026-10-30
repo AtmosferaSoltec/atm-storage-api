@@ -28,6 +28,7 @@ func RegisterRoutes(group *gin.RouterGroup, h *Handler) {
 	group.GET("/files/:id", h.Get)
 	group.GET("/files/:id/download", h.Download)
 	group.GET("/files/:id/preview", h.Preview)
+	group.POST("/files/preview", h.PreviewMany)
 	group.DELETE("/files/:id", h.Delete)
 }
 func principal(c *gin.Context) Principal {
@@ -207,4 +208,21 @@ func (h *Handler) Preview(c *gin.Context) {
 	}
 	c.Header("Cache-Control", "no-store")
 	c.JSON(200, d)
+}
+func (h *Handler) PreviewMany(c *gin.Context) {
+	var body struct {
+		IDs []string `json:"ids"`
+	}
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 16<<10)
+	if err := c.ShouldBindJSON(&body); err != nil {
+		h.fail(c, ErrInvalid)
+		return
+	}
+	links, err := h.service.PreviewMany(c.Request.Context(), principal(c), body.IDs)
+	if err != nil {
+		h.fail(c, err)
+		return
+	}
+	c.Header("Cache-Control", "no-store")
+	c.JSON(200, gin.H{"items": links})
 }

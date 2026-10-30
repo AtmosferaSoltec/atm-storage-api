@@ -23,6 +23,22 @@ func (r *Postgres) Get(ctx context.Context, id string) (File, error) {
 	}
 	return f, err
 }
+func (r *Postgres) GetMany(ctx context.Context, ids []string) ([]File, error) {
+	rows, err := r.pool.Query(ctx, `SELECT id,company_id,system,scope,purpose,filename,content_type,size,created_at,owner_id,state,provider,bucket,object_key FROM storage.files WHERE id = ANY($1::uuid[])`, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var files []File
+	for rows.Next() {
+		var f File
+		if err = rows.Scan(&f.ID, &f.CompanyID, &f.System, &f.Scope, &f.Purpose, &f.Filename, &f.ContentType, &f.Size, &f.CreatedAt, &f.OwnerID, &f.State, &f.Provider, &f.Bucket, &f.Key); err != nil {
+			return nil, err
+		}
+		files = append(files, f)
+	}
+	return files, rows.Err()
+}
 func (r *Postgres) MarkReady(ctx context.Context, id string) error {
 	tag, err := r.pool.Exec(ctx, `UPDATE storage.files SET state='ready' WHERE id=$1 AND state='pending'`, id)
 	if err == nil && tag.RowsAffected() != 1 {
