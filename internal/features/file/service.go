@@ -106,6 +106,11 @@ func canAccess(p Principal, f File, write bool) bool {
 	if p.Role == "superadmin" {
 		return true
 	}
+	// A system's backend (service token) may only read company logos, to print them on its documents. The token
+	// names the system, not a company, so it never reaches system files, uploads, deletions or listings.
+	if p.Role == "service" {
+		return !write && f.Scope == "company" && f.Purpose == "logo"
+	}
 	if p.Role != "user" || p.CompanyID != f.CompanyID {
 		return false
 	}

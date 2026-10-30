@@ -2,7 +2,8 @@
   "openapi": "3.0.3",
   "info": {
     "title": "ATM Storage API",
-    "version": "0.1.0"
+    "version": "0.1.0",
+    "description": "Bearer tokens come from atm-auth-api. Users and superadmin use their access token; a system's backend may use its service token (role `service`) to read company logos only."
   },
   "servers": [
     {

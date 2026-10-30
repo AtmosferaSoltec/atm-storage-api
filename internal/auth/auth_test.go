@@ -32,6 +32,7 @@ func TestVerifierRejectsInvalidTokens(t *testing.T) {
 		{"valid", "atm-auth-dev", "superadmin", "admin", time.Now().Add(time.Minute), true},
 		{"expired", "atm-auth-dev", "user", "user", time.Now().Add(-time.Minute), false},
 		{"wrong environment", "atm-auth", "superadmin", "admin", time.Now().Add(time.Minute), false},
+		{"service token", "atm-auth-dev", "service", "system:lavendimia", time.Now().Add(time.Minute), true},
 		{"unknown role", "atm-auth-dev", "admin", "admin", time.Now().Add(time.Minute), false},
 		{"no subject", "atm-auth-dev", "superadmin", "", time.Now().Add(time.Minute), false},
 	} {

@@ -295,3 +295,50 @@ func TestPreviewOnlyForImages(t *testing.T) {
 		t.Fatalf("other company previewed the logo: %v", err)
 	}
 }
+func TestServiceTokenReadsOnlyCompanyLogos(t *testing.T) {
+	s, _, store := fixture()
+	ctx := context.Background()
+	service := Principal{Subject: "system:olympus", Role: "service", System: "olympus"}
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, image.NewRGBA(image.Rect(0, 0, 4, 4))); err != nil {
+		t.Fatal(err)
+	}
+	logo, err := s.Upload(ctx, admin, Upload{CompanyID: company, Scope: "company", Purpose: "logo", Filename: "logo.png", ContentType: "image/png", Size: int64(buf.Len())}, bytes.NewReader(buf.Bytes()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	private, err := s.Upload(ctx, owner, uploadInput(), bytes.NewReader([]byte("hello")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.Get(ctx, service, logo.ID); err != nil {
+		t.Fatalf("service could not read a company logo: %v", err)
+	}
+	if _, err = s.Download(ctx, service, logo.ID); err != nil {
+		t.Fatalf("service could not download a company logo: %v", err)
+	}
+	if _, err = s.Preview(ctx, service, logo.ID); err != nil {
+		t.Fatalf("service could not preview a company logo: %v", err)
+	}
+	if _, err = s.Get(ctx, service, private.ID); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("service read a private system file: %v", err)
+	}
+	if err = s.Delete(ctx, service, logo.ID); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("service deleted a logo: %v", err)
+	}
+	if store.deletes != 0 {
+		t.Fatal("service touched the provider on a denied deletion")
+	}
+	if err = s.ValidateUpload(service, uploadInput()); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("service uploaded a file: %v", err)
+	}
+	if err = s.ValidateUpload(service, Upload{CompanyID: company, Scope: "company", Purpose: "logo"}); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("service replaced a logo: %v", err)
+	}
+	if _, err = s.List(ctx, service, ListFilter{}); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("service listed files: %v", err)
+	}
+	if _, err = s.Summary(ctx, service); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("service read usage: %v", err)
+	}
+}

@@ -35,7 +35,7 @@ func New(publicKeyBase64, issuer string) (*Verifier, error) {
 func (v *Verifier) Verify(raw string) (Claims, error) {
 	var claims Claims
 	_, err := jwt.ParseWithClaims(raw, &claims, func(t *jwt.Token) (any, error) { return v.key, nil }, jwt.WithValidMethods([]string{"RS256"}), jwt.WithIssuer(v.issuer), jwt.WithExpirationRequired(), jwt.WithIssuedAt())
-	if err != nil || claims.Subject == "" || claims.IssuedAt == nil || (claims.Role != "superadmin" && claims.Role != "user") {
+	if err != nil || claims.Subject == "" || claims.IssuedAt == nil || (claims.Role != "superadmin" && claims.Role != "user" && claims.Role != "service") {
 		return Claims{}, errors.New("invalid access token")
 	}
 	return claims, nil
